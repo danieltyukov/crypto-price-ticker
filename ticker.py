@@ -1,4 +1,3 @@
-import time
 import json
 import requests
 import pandas as pd
@@ -7,7 +6,7 @@ import base64
 import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
 
-st.page_config(layout="wide")
+st.set_page_config(layout="wide")
 st.title("Crypto Price Ticker")
 st.markdown(
     """Retrieving the data of the prices of the top cryptocurrencies from CainMarketCap"""
@@ -17,7 +16,7 @@ st.markdown("""
 """)
 
 col = st.sidebar
-col1, cold2 = st.beta_columns((2, 1))
+col1, col2 = st.columns((2, 1))
 
 col.header("Settings")
 price_unit = col.selectbox("Select the type of currency for the price: ",
@@ -37,48 +36,47 @@ def get_data():
     for i in listing:
         coins[str(i['id'])] = i['slug']
 
-    coinname = []
-    symbol = []
-    marketcap = []
+    coin_name = []
+    coin_symbol = []
+    market_cap = []
+    percent_change_1h = []
+    percent_change_24h = []
+    percent_change_7d = []
     price = []
-    volume = []
-    change_1h = []
-    change_24h = []
-    change_7d = []
+    volume_24h = []
 
     for i in listing:
-        coinname.append(i['id'])
-        symbol.append(i['symbol'])
-        marketcap.append(i['quote'][price_unit]['market_cap'])
+        coin_name.append(i['slug'])
+        coin_symbol.append(i['symbol'])
         price.append(i['quote'][price_unit]['price'])
-        volume.append(i['quote'][price_unit]['volume_24h'])
-        change_1h.append(i['quote'][price_unit]['percent_change_1h'])
-        change_24h.append(i['quote'][price_unit]['percent_change_24h'])
-        change_7d.append(i['quote'][price_unit]['percent_change_7d'])
+        percent_change_1h.append(i['quote'][price_unit]['percent_change_1h'])
+        percent_change_24h.append(i['quote'][price_unit]['percent_change_24h'])
+        percent_change_7d.append(i['quote'][price_unit]['percent_change_7d'])
+        market_cap.append(i['quote'][price_unit]['market_cap'])
+        volume_24h.append(i['quote'][price_unit]['volume_24h'])
 
     df = pd.DataFrame(columns=[
-        'coinname', 'symbol', 'marketcap', 'price', 'volume', 'change_1h',
-        'change_24h', 'change_7d'
+        'coin_name', 'coin_symbol', 'market_cap', 'percent_change_1h',
+        'percent_change_24h', 'percent_change_7d', 'price', 'volume_24h'
     ])
 
-    df['coinname'] = coinname
-    df['symbol'] = symbol
-    df['marketcap'] = marketcap
+    df['coin_name'] = coin_name
+    df['coin_symbol'] = coin_symbol
     df['price'] = price
-    df['volume'] = volume
-    df['change_1h'] = change_1h
-    df['change_24h'] = change_24h
-    df['change_7d'] = change_7d
-    df = df.sort_values(by='marketcap', ascending=False)
+    df['percent_change_1h'] = percent_change_1h
+    df['percent_change_24h'] = percent_change_24h
+    df['percent_change_7d'] = percent_change_7d
+    df['market_cap'] = market_cap
+    df['volume_24h'] = volume_24h
     return df
 
 
 df = get_data()
 
-sort_by_coin = sorted(df['symbol'])
+sort_by_coin = sorted(df['coin_symbol'])
 select_by_coin = col.multiselect('Cryptocurrency', sort_by_coin, sort_by_coin)
 
-df_select_by_coin = df[(df['symbol'].isin(select_by_coin))]
+df_select_by_coin = df[(df['coin_symbol'].isin(select_by_coin))]
 
 number_of_coins = col.slider('Display the top N amount of coins', 1, 100, 100)
 df_coins = df_select_by_coin.head[:number_of_coins]
@@ -110,15 +108,57 @@ def filedownload(df):
 
 col1.markdown(filedownload(df_select_by_coin), unsafe_allow_html=True)
 
-col1.subheader('Price Data Change of The Cryptocurrency')
+col1.subheader('Table of the percentage price change')
 df_change = pd.concat([
-    df_coins.symbol, df_coins.change_1h, df_coins.change_24h,
-    df_coins.change_7d
+    df_coins.coin_symbol, df_coins.percent_change_1h,
+    df_coins.percent_change_24h, df_coins.percent_change_7d
 ],
                       axis=1)
-df_change = df_change.set_index('symbol')
-df_change['change_1h'] = df_change['change_1h'] > 0
-df_change['change_24h'] = df_change['change_24h'] > 0
-df_change['change_7d'] = df_change['change_7d'] > 0
+df_change = df_change.set_index('coin_symbol')
+df_change['positive_percent_change_1h'] = df_change['percent_change_1h'] > 0
+df_change['positive_percent_change_24h'] = df_change['percent_change_24h'] > 0
+df_change['positive_percent_change_7d'] = df_change['percent_change_7d'] > 0
 
 col1.dataframe(df_change)
+
+col2.subheader('Bar plot of the percentage price change')
+
+if percentage_time_frame == '7d':
+    if sort_by_value == 'Yes':
+        df_change = df_change.sort_values(by=['percent_change_7d'])
+    col2.write('*7 day period*')
+    plt.figure(figsize=(5, 25))
+    plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
+    df_change['percent_change_7d'].plot(kind='barh',
+                                        color=df_change.positive_change_7d.map(
+                                            {
+                                                True: 'g',
+                                                False: 'r'
+                                            }))
+    col2.pyplot(plt)
+elif percentage_time_frame == '24h':
+    if sort_by_value == 'Yes':
+        df_change = df_change.sort_values(by=['percent_change_24h'])
+    col2.write('*24 hour period*')
+    plt.figure(figsize=(5, 25))
+    plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
+    df_change['percent_change_24h'].plot(
+        kind='barh',
+        color=df_change.positive_change_24h.map({
+            True: 'g',
+            False: 'r'
+        }))
+    col2.pyplot(plt)
+else:
+    if sort_by_value == 'Yes':
+        df_change = df_change.sort_values(by=['percent_change_1h'])
+    col2.write('*1 hour period*')
+    plt.figure(figsize=(5, 25))
+    plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
+    df_change['percent_change_1h'].plot(kind='barh',
+                                        color=df_change.positive_change_1h.map(
+                                            {
+                                                True: 'g',
+                                                False: 'r'
+                                            }))
+    col2.pyplot(plt)
