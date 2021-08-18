@@ -35,4 +35,50 @@ def get_data():
     listing = coin_data['props']['initialState']['cryptocurrency'][
         'listingLatest']['data']
     for i in listing:
-        coins[str(i['slug'])] = i['slug']
+        coins[str(i['id'])] = i['slug']
+
+    coinname = []
+    symbol = []
+    marketcap = []
+    price = []
+    volume = []
+    change_1h = []
+    change_24h = []
+    change_7d = []
+
+    for i in listing:
+        coinname.append(i['id'])
+        symbol.append(i['symbol'])
+        marketcap.append(i['quote'][price_unit]['market_cap'])
+        price.append(i['quote'][price_unit]['price'])
+        volume.append(i['quote'][price_unit]['volume_24h'])
+        change_1h.append(i['quote'][price_unit]['percent_change_1h'])
+        change_24h.append(i['quote'][price_unit]['percent_change_24h'])
+        change_7d.append(i['quote'][price_unit]['percent_change_7d'])
+
+    df = pd.DataFrame(columns=[
+        'coinname', 'symbol', 'marketcap', 'price', 'volume', 'change_1h',
+        'change_24h', 'change_7d'
+    ])
+
+    df['coinname'] = coinname
+    df['symbol'] = symbol
+    df['marketcap'] = marketcap
+    df['price'] = price
+    df['volume'] = volume
+    df['change_1h'] = change_1h
+    df['change_24h'] = change_24h
+    df['change_7d'] = change_7d
+    df = df.sort_values(by='marketcap', ascending=False)
+    return df
+
+
+df = get_data()
+
+sort_by_coin = sorted(df['symbol'])
+select_by_coin = col.multiselect('Cryptocurrency', sort_by_coin, sort_by_coin)
+
+df_select_by_coin = df[(df['symbol'].isin(select_by_coin))]
+
+number_of_coins = col.slider('Display the top N amount of coins', 1, 100, 100)
+df_coins = df_select_by_coin.head[:number_of_coins]
