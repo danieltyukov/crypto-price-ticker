@@ -82,3 +82,43 @@ df_select_by_coin = df[(df['symbol'].isin(select_by_coin))]
 
 number_of_coins = col.slider('Display the top N amount of coins', 1, 100, 100)
 df_coins = df_select_by_coin.head[:number_of_coins]
+
+percentage_time_frame = col.selectbox('Percentage change of time frame',
+                                      ['1h', '24h', '7d'])
+percentage_dict = {
+    '1h': 'percent_change_1h',
+    '24h': 'percent_change_24h',
+    '7d': 'percent_change_7d'
+}
+selected_percentage_time_frame = percentage_dict[percentage_time_frame]
+
+sort_by_value = col.selectbox('Sort By Values?', ['Yes', 'No'])
+
+col1.subheader('Price Data of The Selected Cryptocurrency')
+col1.write('Data Dimension: ' + str(df_coins.shape[0]) + ' rows an ' +
+           str(df_coins.shape[1]) + ' columns.')
+
+col1.dataframe(df_coins)
+
+
+def filedownload(df):
+    csv = df.to_csv(index=False)
+    encoded = base64.b64encode(csv.encode()).decode()
+    href = f'<a href="data:file/csv;base64,{encoded}" download="crypto.csv">Download CSV File</a>'
+    return href
+
+
+col1.markdown(filedownload(df_select_by_coin), unsafe_allow_html=True)
+
+col1.subheader('Price Data Change of The Cryptocurrency')
+df_change = pd.concat([
+    df_coins.symbol, df_coins.change_1h, df_coins.change_24h,
+    df_coins.change_7d
+],
+                      axis=1)
+df_change = df_change.set_index('symbol')
+df_change['change_1h'] = df_change['change_1h'] > 0
+df_change['change_24h'] = df_change['change_24h'] > 0
+df_change['change_7d'] = df_change['change_7d'] > 0
+
+col1.dataframe(df_change)
